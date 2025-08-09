@@ -2,8 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FiLock } from 'react-icons/fi'; // Solo necesitamos el ícono de candado
 import apiClient from '../../utils/axiosConfig';
+// Importamos los íconos de verificación y error
+import { FiLock, FiCheckCircle, FiXCircle } from 'react-icons/fi';
+
 
 const ResetPasswordPage = () => {
     const [searchParams] = useSearchParams();
@@ -12,6 +14,14 @@ const ResetPasswordPage = () => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [token, setToken] = useState(null);
+    const [passwordValidations, setPasswordValidations] = useState({
+        minLength: false,
+        hasUpperCase: false,
+        hasLowerCase: false,
+        hasNumber: false,
+        hasSpecialChar: false,
+    });
+
 
     useEffect(() => {
         const urlToken = searchParams.get('token');
@@ -22,6 +32,19 @@ const ResetPasswordPage = () => {
             navigate('/forgot-password');
         }
     }, [searchParams, navigate]);
+
+    // ⬅️ NUEVA FUNCIÓN PARA MANEJAR CAMBIOS EN LA CONTRASEÑA
+    const handlePasswordChange = (e) => {
+        const value = e.target.value;
+        setPassword(value);
+        setPasswordValidations({
+            minLength: value.length >= 8,
+            hasUpperCase: /[A-Z]/.test(value),
+            hasLowerCase: /[a-z]/.test(value),
+            hasNumber: /[0-9]/.test(value),
+            hasSpecialChar: /[!@#$%^&+=]/.test(value),
+        });
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -81,12 +104,38 @@ const ResetPasswordPage = () => {
                         type="password"
                         placeholder="Mínimo 8 caracteres"
                         value={password}
-                        onChange={(e) => setPassword(e.target.value)}
+                        onChange={handlePasswordChange}
                         className="shadow-sm appearance-none border border-gray-300 rounded-xl w-full py-3 px-4 pr-10 text-gray-900 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all duration-200 placeholder-gray-500"
                         required
                     />
                     <FiLock className="absolute right-3 top-11 text-gray-400" size={20} />
                 </div>
+
+                {/* ⬅️ LISTA DE VERIFICACIÓN DINÁMICA */}
+                {password && (
+                    <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                        <p className={`flex items-center ${passwordValidations.minLength ? 'text-green-500' : 'text-red-500'}`}>
+                            {passwordValidations.minLength ? <FiCheckCircle className="mr-2" /> : <FiXCircle className="mr-2" />}
+                            Mínimo 8 caracteres
+                        </p>
+                        <p className={`flex items-center ${passwordValidations.hasUpperCase ? 'text-green-500' : 'text-red-500'}`}>
+                            {passwordValidations.hasUpperCase ? <FiCheckCircle className="mr-2" /> : <FiXCircle className="mr-2" />}
+                            Una letra mayúscula
+                        </p>
+                        <p className={`flex items-center ${passwordValidations.hasLowerCase ? 'text-green-500' : 'text-red-500'}`}>
+                            {passwordValidations.hasLowerCase ? <FiCheckCircle className="mr-2" /> : <FiXCircle className="mr-2" />}
+                            Una letra minúscula
+                        </p>
+                        <p className={`flex items-center ${passwordValidations.hasNumber ? 'text-green-500' : 'text-red-500'}`}>
+                            {passwordValidations.hasNumber ? <FiCheckCircle className="mr-2" /> : <FiXCircle className="mr-2" />}
+                            Un número
+                        </p>
+                        <p className={`flex items-center ${passwordValidations.hasSpecialChar ? 'text-green-500' : 'text-red-500'}`}>
+                            {passwordValidations.hasSpecialChar ? <FiCheckCircle className="mr-2" /> : <FiXCircle className="mr-2" />}
+                            Un carácter especial
+                        </p>
+                    </div>
+                )}
 
                 <div className="mb-6 relative">
                     <label htmlFor="confirmPassword" className="block text-gray-800 text-base font-semibold mb-2">

@@ -19,6 +19,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -140,7 +141,7 @@ public class AuthController {
 
     // ⬅️ Endpoint para restablecer la contraseña
     @PostMapping("/reset-password")
-    public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequest request) {
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         // 1. Buscar al usuario por el token de recuperación
         User user = userRepository.findByPasswordResetToken(request.getToken())
                 .orElse(null);
@@ -149,6 +150,10 @@ public class AuthController {
             // El token es inválido o ha expirado
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("El token es inválido o ha expirado.");
         }
+
+        // ⬅️ La validación de la nueva contraseña ahora se hace automáticamente
+        //     gracias a la anotación @Valid en el parámetro.
+        //     Ya no necesitas el 'if' con newPassword.matches(...)
 
         // 2. Codificar y guardar la nueva contraseña
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));

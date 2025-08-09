@@ -35,7 +35,8 @@ public class User {
     private String email;
 
     @NotBlank(message = "La contraseña no puede estar vacía")
-    @Size(min = 8, message = "La contraseña debe tener al menos 8 caracteres")
+    @Pattern(regexp = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!])(?=\\S+$).{8,64}$",
+            message = "La contraseña debe tener al menos 8 caracteres, incluyendo una letra mayúscula, una minúscula, un número y un carácter especial (@#$%^&+=!)")
     @Column(nullable = false)
     private String password;
 

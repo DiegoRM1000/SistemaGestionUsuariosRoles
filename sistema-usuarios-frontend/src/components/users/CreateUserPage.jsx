@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiSave, FiArrowLeft } from 'react-icons/fi';
+import { FiSave, FiArrowLeft, FiCheckCircle, FiXCircle } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import apiClient from '../../utils/axiosConfig';
 import { useNavigate } from 'react-router-dom';
@@ -15,18 +15,26 @@ const CreateUserPage = () => {
         dni: '',
         dateOfBirth: '',
         phoneNumber: '',
-        role: 'EMPLEADO', // Valor por defecto
+        role: 'EMPLEADO',
     });
     const [roles, setRoles] = useState([]);
     const [loadingRoles, setLoadingRoles] = useState(true);
-    const [errors, setErrors] = useState({}); // <-- Nuevo estado para los errores
+    const [errors, setErrors] = useState({});
+
+    // Estado para la validación en vivo de la contraseña
+    const [passwordValidations, setPasswordValidations] = useState({
+        minLength: false,
+        hasUpperCase: false,
+        hasLowerCase: false,
+        hasNumber: false,
+        hasSpecialChar: false,
+    });
 
     useEffect(() => {
         const fetchRoles = async () => {
             try {
                 const response = await apiClient.get('/roles/all');
                 setRoles(response.data);
-                // Establece el rol por defecto si hay roles disponibles
                 if (response.data.length > 0) {
                     setFormData(prev => ({ ...prev, role: response.data[0].name }));
                 }
@@ -46,7 +54,18 @@ const CreateUserPage = () => {
             ...prevData,
             [name]: value,
         }));
-        // Limpiar el error del campo cuando el usuario empieza a escribir
+
+        // Lógica de validación en vivo para la contraseña
+        if (name === 'password') {
+            setPasswordValidations({
+                minLength: value.length >= 8,
+                hasUpperCase: /[A-Z]/.test(value),
+                hasLowerCase: /[a-z]/.test(value),
+                hasNumber: /[0-9]/.test(value),
+                hasSpecialChar: /[!@#$%^&+=]/.test(value),
+            });
+        }
+
         if (errors[name]) {
             setErrors(prevErrors => {
                 const newErrors = { ...prevErrors };
@@ -58,9 +77,8 @@ const CreateUserPage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setErrors({}); // Limpiar errores anteriores
+        setErrors({});
         try {
-            // El backend ahora espera el objeto User completo, no solo los datos del formulario
             const userToCreate = {
                 ...formData,
                 role: { name: formData.role }
@@ -71,14 +89,16 @@ const CreateUserPage = () => {
             navigate('/dashboard/users');
         } catch (error) {
             console.error('Error al crear usuario:', error);
-            // Capturar y mostrar errores de validación
+
             if (error.response && error.response.status === 400 && error.response.data) {
-                // El backend devuelve un objeto de errores, lo almacenamos en el estado
                 setErrors(error.response.data);
-                // Mostrar un toast genérico para el usuario
-                toast.error('Por favor, corrige los errores en el formulario.');
+
+                if (error.response.data.password) {
+                    toast.error(error.response.data.password);
+                } else {
+                    toast.error('Por favor, corrige los errores en el formulario.');
+                }
             } else {
-                // Manejo de otros tipos de errores
                 const errorMessage = error.response?.data?.message || 'Error al crear usuario. Verifica los datos.';
                 toast.error(errorMessage);
             }
@@ -99,14 +119,12 @@ const CreateUserPage = () => {
 
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 max-w-2xl mx-auto">
                 <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Campos del formulario */}
-                    {/* Ejemplo de campo con manejo de error */}
+                    {/* ... (campos firstName, lastName, username, email) ... */}
                     <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre</label>
                         <input type="text" name="firstName" value={formData.firstName} onChange={handleChange} required className={`input-field ${errors.firstName ? 'border-red-500' : ''}`} />
                         {errors.firstName && <p className="mt-1 text-sm text-red-500">{errors.firstName}</p>}
                     </div>
-                    {/* ... Repite el patrón para todos los campos */}
                     <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Apellido</label>
                         <input type="text" name="lastName" value={formData.lastName} onChange={handleChange} required className={`input-field ${errors.lastName ? 'border-red-500' : ''}`} />
@@ -122,11 +140,48 @@ const CreateUserPage = () => {
                         <input type="email" name="email" value={formData.email} onChange={handleChange} required className={`input-field ${errors.email ? 'border-red-500' : ''}`} />
                         {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
                     </div>
+
+                    {/* Campo de Contraseña con validación en vivo */}
                     <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Contraseña</label>
-                        <input type="password" name="password" value={formData.password} onChange={handleChange} required className={`input-field ${errors.password ? 'border-red-500' : ''}`} />
+                        <input
+                            type="password"
+                            name="password"
+                            value={formData.password}
+                            onChange={handleChange}
+                            required
+                            className={`input-field ${errors.password ? 'border-red-500' : ''}`}
+                        />
                         {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password}</p>}
+
+                        {/* Lista de verificación de la contraseña */}
+                        {formData.password && (
+                            <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                                <p className={`flex items-center ${passwordValidations.minLength ? 'text-green-500' : 'text-red-500'}`}>
+                                    {passwordValidations.minLength ? <FiCheckCircle className="mr-2" /> : <FiXCircle className="mr-2" />}
+                                    Mínimo 8 caracteres
+                                </p>
+                                <p className={`flex items-center ${passwordValidations.hasUpperCase ? 'text-green-500' : 'text-red-500'}`}>
+                                    {passwordValidations.hasUpperCase ? <FiCheckCircle className="mr-2" /> : <FiXCircle className="mr-2" />}
+                                    Una letra mayúscula
+                                </p>
+                                <p className={`flex items-center ${passwordValidations.hasLowerCase ? 'text-green-500' : 'text-red-500'}`}>
+                                    {passwordValidations.hasLowerCase ? <FiCheckCircle className="mr-2" /> : <FiXCircle className="mr-2" />}
+                                    Una letra minúscula
+                                </p>
+                                <p className={`flex items-center ${passwordValidations.hasNumber ? 'text-green-500' : 'text-red-500'}`}>
+                                    {passwordValidations.hasNumber ? <FiCheckCircle className="mr-2" /> : <FiXCircle className="mr-2" />}
+                                    Un número
+                                </p>
+                                <p className={`flex items-center ${passwordValidations.hasSpecialChar ? 'text-green-500' : 'text-red-500'}`}>
+                                    {passwordValidations.hasSpecialChar ? <FiCheckCircle className="mr-2" /> : <FiXCircle className="mr-2" />}
+                                    Un carácter especial
+                                </p>
+                            </div>
+                        )}
                     </div>
+
+                    {/* ... (campos DNI, Fecha de Nacimiento, Teléfono, Rol) ... */}
                     <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">DNI</label>
                         <input type="text" name="dni" value={formData.dni} onChange={handleChange} className={`input-field ${errors.dni ? 'border-red-500' : ''}`} />

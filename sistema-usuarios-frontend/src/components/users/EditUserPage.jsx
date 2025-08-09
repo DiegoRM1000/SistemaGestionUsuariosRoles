@@ -11,6 +11,7 @@ const EditUserPage = () => {
     const [formData, setFormData] = useState({
         username: '',
         email: '',
+        password: '', // Nuevo campo para la contraseña
         firstName: '',
         lastName: '',
         dni: '',
@@ -20,7 +21,7 @@ const EditUserPage = () => {
     });
     const [roles, setRoles] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [errors, setErrors] = useState({}); // <-- Nuevo estado para los errores
+    const [errors, setErrors] = useState({});
     const { user, logout } = useAuth();
 
     useEffect(() => {
@@ -40,6 +41,7 @@ const EditUserPage = () => {
                     dateOfBirth: userData.dateOfBirth || '',
                     phoneNumber: userData.phoneNumber || '',
                     role: userData.role.name,
+                    password: '', // Importante: la contraseña no se debe precargar por seguridad
                 });
                 setRoles(rolesResponse.data);
             } catch (error) {
@@ -59,7 +61,6 @@ const EditUserPage = () => {
             ...prevData,
             [name]: value,
         }));
-        // Limpiar el error del campo cuando el usuario empieza a escribir
         if (errors[name]) {
             setErrors(prevErrors => {
                 const newErrors = { ...prevErrors };
@@ -71,13 +72,17 @@ const EditUserPage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setErrors({}); // Limpiar errores anteriores
+        setErrors({});
         try {
-            // El backend ahora espera el objeto User completo, no un Map
             const userToUpdate = {
                 ...formData,
                 role: { name: formData.role }
             };
+
+            // Eliminar el campo de contraseña si está vacío para no modificarla
+            if (!userToUpdate.password) {
+                delete userToUpdate.password;
+            }
 
             await apiClient.put(`/users/${id}`, userToUpdate);
             toast.success('¡Usuario actualizado con éxito!');
@@ -91,10 +96,16 @@ const EditUserPage = () => {
             }
         } catch (error) {
             console.error('Error al actualizar usuario:', error);
-            // Capturar y mostrar errores de validación
             if (error.response && error.response.status === 400 && error.response.data) {
                 setErrors(error.response.data);
-                toast.error('Por favor, corrige los errores en el formulario.');
+                // Lógica mejorada para mostrar errores específicos
+                if (error.response.data.password) {
+                    toast.error(error.response.data.password);
+                } else if (Object.keys(error.response.data).length > 0) {
+                    toast.error('Por favor, corrige los errores en el formulario.');
+                } else {
+                    toast.error(error.response.data.message || 'Error al actualizar usuario. Verifica los datos.');
+                }
             } else {
                 const errorMessage = error.response?.data?.message || 'Error al actualizar usuario. Verifica los datos.';
                 toast.error(errorMessage);
@@ -121,17 +132,13 @@ const EditUserPage = () => {
                     <FiArrowLeft className="mr-2" /> Volver
                 </button>
             </header>
-
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 max-w-2xl mx-auto">
                 <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Campos del formulario */}
-                    {/* Ejemplo de campo con manejo de error */}
                     <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre</label>
                         <input type="text" name="firstName" value={formData.firstName} onChange={handleChange} required className={`input-field ${errors.firstName ? 'border-red-500' : ''}`} />
                         {errors.firstName && <p className="mt-1 text-sm text-red-500">{errors.firstName}</p>}
                     </div>
-                    {/* ... Repite el patrón para todos los campos */}
                     <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Apellido</label>
                         <input type="text" name="lastName" value={formData.lastName} onChange={handleChange} required className={`input-field ${errors.lastName ? 'border-red-500' : ''}`} />
@@ -146,6 +153,12 @@ const EditUserPage = () => {
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
                         <input type="email" name="email" value={formData.email} onChange={handleChange} required className={`input-field ${errors.email ? 'border-red-500' : ''}`} />
                         {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
+                    </div>
+                    {/* Campo de Contraseña */}
+                    <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nueva Contraseña (Opcional)</label>
+                        <input type="password" name="password" value={formData.password} onChange={handleChange} className={`input-field ${errors.password ? 'border-red-500' : ''}`} />
+                        {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password}</p>}
                     </div>
                     <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">DNI</label>
