@@ -1,0 +1,65 @@
+
+
+@import "tailwindcss"; /* Importa las bases, componentes y utilidades de Tailwind */
+
+/* src/index.css */
+
+
+@import "tailwindcss/utilities";
+
+/* Raíz global del documento para tipografía base */
+:root {
+  font-family: sans-serif; /* Fuente de respaldo, puedes especificar Google Fonts si quieres */
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+/* --- Definiciones de Animaciones CSS (Directamente en index.css) --- */
+
+/* Keyframes para la animación de aparición del formulario (fadeIn) */
+@keyframes fadeIn {
+  0% { opacity: 0; transform: translateY(40px); } /* Empieza invisible y más abajo */
+  100% { opacity: 1; transform: translateY(0); }  /* Termina visible en su posición */
+}
+
+/* Keyframes para la animación del botón al presionar (buttonPress) */
+@keyframes buttonPress {
+  0%, 100% { transform: scale(1); } /* Tamaño normal al inicio y al final */
+  50% { transform: scale(0.92); }   /* Se encoge ligeramente a la mitad de la animación */
+}
+
+/* Keyframes para la animación de la barra de llenado de la notificación (notificationFill) */
+@keyframes notificationFill {
+  0% { transform: scaleX(0); }   /* Empieza con ancho cero */
+  100% { transform: scaleX(1); } /* Se expande a su ancho completo */
+}
+
+/* --- Aplicación de Clases de Animación (Vinculadas a los Keyframes) --- */
+
+/* Clase para la animación de aparición del formulario */
+.animate-fade-in {
+  animation: fadeIn 1.2s ease-out forwards; /* Duración más larga para una animación notoria */
+}
+
+/* Clase para la animación de "presión" del botón */
+.animate-button-press {
+  animation: buttonPress 0.3s ease-in-out; /* Duración corta para una respuesta rápida al clic */
+}
+
+/* Clase para la animación de llenado de la notificación */
+.animate-notification-fill {
+  animation: notificationFill 0.15s ease-out forwards; /* ¡Duración muy corta para ser casi instantánea! */
+}
+
+/* Nuevas clases para los componentes de la interfaz de usuario */
+@layer components {
+  .input-field {
+    @apply w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors;
+  }
+  .btn-primary {
+    @apply flex items-center justify-center px-6 py-2.5 rounded-lg shadow-md text-white font-medium bg-indigo-600 hover:bg-indigo-700 transition duration-150 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500;
+  }
+  .btn-cancel {
+    @apply flex items-center justify-center px-6 py-2.5 rounded-lg shadow-md text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition duration-150 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500;
+  }
+}

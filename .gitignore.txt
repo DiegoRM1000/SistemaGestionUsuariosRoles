@@ -1,0 +1,42 @@
+# Ignorar archivos y directorios comunes de Node/npm
+node_modules/
+.DS_Store
+.env.local
+.env.*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.npm/
+.vite/
+package-lock.json # Ignorar el package-lock.json de la raíz si lo hubiera
+
+# Ignorar archivos de construcción de frontend (Vite)
+dist/
+build/
+
+# Ignorar archivos de configuración de IDE (IntelliJ IDEA)
+.idea/
+*.iml
+
+# Ignorar archivos y directorios comunes de Spring Boot/Java
+target/
+.gradle/
+build/
+.mvn/
+*.log
+*.jar
+*.war
+*.zip
+*.tar.gz
+.project
+.settings/
+.classpath
+classpath/
+test-results/
+*.bak
+
+# Ignorar la carpeta node_modules del frontend y sus artefactos de build
+sistema-usuarios-frontend/node_modules/
+sistema-usuarios-frontend/dist/
+sistema-usuarios-frontend/package-lock.json # Ignorar el package-lock.json específico del frontend

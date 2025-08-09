@@ -1,0 +1,42 @@
+/* src/index.css */
+
+@import "tailwindcss";
+
+:root {
+    font-family: sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
+}
+
+/* --- Animaciones CSS Manuales --- */
+/* Keyframes para la animación de aparición del formulario */
+@keyframes fadeIn {
+    0% { opacity: 0; transform: translateY(40px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Keyframes para la animación del botón al presionar */
+@keyframes buttonPress {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(0.92); }
+}
+
+/* Keyframes para la animación de la barra de notificación */
+@keyframes notificationFill {
+    0% { transform: scaleX(0); }
+    100% { transform: scaleX(1); }
+}
+
+/* Clases de animación aplicadas */
+.animate-fade-in {
+    animation: fadeIn 1.2s ease-out forwards;
+}
+
+.animate-button-press {
+    animation: buttonPress 0.3s ease-in-out;
+}
+
+.animate-notification-fill {
+    /* ¡Aquí está el cambio clave! Duración mucho más corta */
+    animation: notificationFill 0.15s ease-out forwards; /* Cambia a 0.1s o 0.15s */
+}
