@@ -7,8 +7,13 @@ import jakarta.validation.constraints.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
 
 @Entity
 @Table(name = "users", uniqueConstraints = {
@@ -92,6 +97,9 @@ public class User {
     @Column(name = "token_expiration_date")
     private LocalDateTime tokenExpirationDate;
 
+    @Column(length = 255)
+    private String avatarUrl;
+
 
     @PrePersist
     protected void onCreate() {
@@ -119,5 +127,9 @@ public class User {
 
     public void setTokenExpirationDate(LocalDateTime tokenExpirationDate) {
         this.tokenExpirationDate = tokenExpirationDate;
+    }
+
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(new SimpleGrantedAuthority(role.getName()));
     }
 }

@@ -1,8 +1,10 @@
 package com.usersystem.sistemausuariosbackend.service;
 
 import com.usersystem.sistemausuariosbackend.model.User;
+import com.usersystem.sistemausuariosbackend.payload.UserProfileUpdateDto;
 import com.usersystem.sistemausuariosbackend.repository.UserRepository;
 import com.usersystem.sistemausuariosbackend.repository.RoleRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
@@ -113,6 +115,43 @@ public class UserService {
         });
     }
 
-    // El método antiguo ya no se usa, lo podemos eliminar.
-    // public Optional<User> updateUser(Long userId, Map<String, String> updateRequest) { ... }
+    /**
+     * Actualiza la información del perfil de un usuario autenticado.
+     * Solo permite la actualización de campos no sensibles como nombre, apellido, DNI, etc.
+     *
+     * @param userId El ID del usuario a actualizar.
+     * @param profileUpdateDto El DTO con la información a actualizar.
+     * @return Un Optional que contiene el usuario actualizado, o un Optional vacío si no se encuentra.
+     */
+    public Optional<User> updateUserProfile(Long userId, UserProfileUpdateDto profileUpdateDto) {
+        return userRepository.findById(userId).map(user -> {
+            // Actualizamos los campos desde el DTO
+            user.setFirstName(profileUpdateDto.getFirstName());
+            user.setLastName(profileUpdateDto.getLastName());
+            user.setDni(profileUpdateDto.getDni());
+            user.setPhoneNumber(profileUpdateDto.getPhoneNumber());
+            user.setUpdatedAt(LocalDateTime.now());
+            return userRepository.save(user);
+        });
+    }
+
+    /**
+     * Permite a un usuario cambiar su contraseña.
+     * @param userId El ID del usuario.
+     * @param currentPassword La contraseña actual, en texto plano.
+     * @param newPassword La nueva contraseña, en texto plano.
+     * @param passwordEncoder El codificador de contraseñas de Spring Security.
+     * @return true si la contraseña se actualizó con éxito, false si la contraseña actual no coincide.
+     */
+    public boolean changePassword(Long userId, String currentPassword, String newPassword, PasswordEncoder passwordEncoder) {
+        return userRepository.findById(userId).map(user -> {
+            if (passwordEncoder.matches(currentPassword, user.getPassword())) {
+                user.setPassword(passwordEncoder.encode(newPassword));
+                user.setUpdatedAt(LocalDateTime.now());
+                userRepository.save(user);
+                return true;
+            }
+            return false;
+        }).orElse(false);
+    }
 }

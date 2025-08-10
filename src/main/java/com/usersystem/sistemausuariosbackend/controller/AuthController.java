@@ -1,13 +1,10 @@
 package com.usersystem.sistemausuariosbackend.controller;
 
 import com.usersystem.sistemausuariosbackend.model.User;
-import com.usersystem.sistemausuariosbackend.payload.LoginDto;
-import com.usersystem.sistemausuariosbackend.payload.LoginResponseDto;
+import com.usersystem.sistemausuariosbackend.payload.*;
 import com.usersystem.sistemausuariosbackend.repository.UserRepository;
 import com.usersystem.sistemausuariosbackend.service.EmailService;
 import com.usersystem.sistemausuariosbackend.service.LogService;
-import com.usersystem.sistemausuariosbackend.payload.ForgotPasswordRequest;
-import com.usersystem.sistemausuariosbackend.payload.ResetPasswordRequest;
 import com.usersystem.sistemausuariosbackend.security.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -17,9 +14,11 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
+import com.usersystem.sistemausuariosbackend.service.TwoFactorAuthService;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -34,23 +33,27 @@ public class AuthController {
     private final LogService logService;
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
+    private final TwoFactorAuthService twoFactorAuthService;
 
     public AuthController(AuthenticationManager authenticationManager,
                           UserRepository userRepository,
                           JwtUtil jwtUtil,
                           LogService logService,
                           EmailService emailService,
-                          PasswordEncoder passwordEncoder) {
+                          PasswordEncoder passwordEncoder,
+                          TwoFactorAuthService twoFactorAuthService) { // <-- ¡AÑADE ESTO!
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.jwtUtil = jwtUtil;
         this.logService = logService;
         this.emailService = emailService;
         this.passwordEncoder = passwordEncoder;
+        this.twoFactorAuthService = twoFactorAuthService;
+
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponseDto> authenticateUser(@RequestBody LoginDto loginDto, HttpServletRequest request) {
+    public ResponseEntity<?> authenticateUser(@RequestBody LoginDto loginDto, HttpServletRequest request) {
         String ipAddress = request.getRemoteAddr();
 
         if (loginDto.getEmail() == null || loginDto.getPassword() == null) {
@@ -66,28 +69,28 @@ public class AuthController {
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            String token = jwtUtil.generateToken((org.springframework.security.core.userdetails.UserDetails) authentication.getPrincipal());
-
             User loggedInUser = userRepository.findByEmail(loginDto.getEmail()).orElse(null);
-
             if (loggedInUser == null) {
                 return new ResponseEntity<>(null, HttpStatus.UNAUTHORIZED);
             }
 
-            String roleName = loggedInUser.getRole().getName();
+            // --- Lógica de 2FA
+            if (loggedInUser.isTwoFactorEnabled()) {
+                // Genera un token TEMPORAL sin el rol, que solo servirá para el siguiente paso (verificación del 2FA)
+                String tempToken = jwtUtil.generateToken((org.springframework.security.core.userdetails.UserDetails) authentication.getPrincipal());
+                return ResponseEntity.ok(new Login2FAResponse(tempToken, "Bearer", "Se requiere código 2FA.", true));
+            }
+            // --- Fin de la lógica 2FA
 
+            // Si el 2FA NO está habilitado, procede con el login normal
+            String token = jwtUtil.generateToken((org.springframework.security.core.userdetails.UserDetails) authentication.getPrincipal());
+            String roleName = loggedInUser.getRole().getName();
             logService.log("USER_LOGIN", loggedInUser.getUsername(), loggedInUser.getId(), null, null,
                     "Inicio de sesión exitoso", "SUCCESS", ipAddress);
 
             return ResponseEntity.ok(new LoginResponseDto(
-                    token,
-                    "Bearer",
-                    loggedInUser.getId(),
-                    loggedInUser.getFirstName(),
-                    loggedInUser.getLastName(),
-                    loggedInUser.getEmail(),
-                    loggedInUser.getDni(),
-                    roleName
+                    token, "Bearer", loggedInUser.getId(), loggedInUser.getFirstName(),
+                    loggedInUser.getLastName(), loggedInUser.getEmail(), loggedInUser.getDni(), roleName
             ));
 
         } catch (AuthenticationException e) {
@@ -162,5 +165,45 @@ public class AuthController {
         userRepository.save(user);
 
         return ResponseEntity.ok("Contraseña restablecida exitosamente.");
+    }
+
+    @PostMapping("/verify-2fa")
+    public ResponseEntity<?> verify2fa(@RequestHeader("Authorization") String token,
+                                       @RequestBody TwoFactorAuthRequest twoFactorAuthRequest,
+                                       HttpServletRequest request) {
+
+        String jwtToken = token.substring(7); // Remueve "Bearer "
+        // --- Corregimos el nombre del método a 'extractUsername'
+        String email = jwtUtil.extractUsername(jwtToken);
+
+        return userRepository.findByEmail(email).map(user -> {
+            if (twoFactorAuthService.verifyCode(twoFactorAuthRequest.getVerificationCode(), user.getTwoFactorSecret())) {
+
+                // --- Corregimos el método generateToken
+                // Necesitamos un objeto UserDetails para generar el token final
+                // Asumimos que tu clase User implementa UserDetails, si no es así,
+                // habría que crear una implementación
+                UserDetails userDetails = new org.springframework.security.core.userdetails.User(
+                        user.getEmail(),
+                        user.getPassword(),
+                        user.getAuthorities() // Asume que tienes un getAuthorities en User
+                );
+                String finalToken = jwtUtil.generateToken(userDetails);
+
+                String roleName = user.getRole().getName();
+
+                String ipAddress = request.getRemoteAddr();
+                logService.log("USER_LOGIN_2FA", user.getUsername(), user.getId(), null, null,
+                        "Inicio de sesión 2FA exitoso", "SUCCESS", ipAddress);
+
+                return ResponseEntity.ok(new LoginResponseDto(
+                        finalToken, "Bearer", user.getId(), user.getFirstName(),
+                        user.getLastName(), user.getEmail(), user.getDni(), roleName
+                ));
+
+            } else {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Código de 2FA inválido.");
+            }
+        }).orElse(ResponseEntity.notFound().build());
     }
 }

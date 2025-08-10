@@ -3,9 +3,14 @@
 package com.usersystem.sistemausuariosbackend.controller;
 
 import com.usersystem.sistemausuariosbackend.model.User;
+import com.usersystem.sistemausuariosbackend.payload.ChangePasswordRequest;
+import com.usersystem.sistemausuariosbackend.payload.TwoFactorAuthRequest;
+import com.usersystem.sistemausuariosbackend.payload.UserProfileUpdateDto;
 import com.usersystem.sistemausuariosbackend.payload.UserResponseDto;
 import com.usersystem.sistemausuariosbackend.repository.UserRepository;
+import com.usersystem.sistemausuariosbackend.service.FileStorageService;
 import com.usersystem.sistemausuariosbackend.service.LogService;
+import com.usersystem.sistemausuariosbackend.service.TwoFactorAuthService;
 import com.usersystem.sistemausuariosbackend.service.UserService;
 import com.usersystem.sistemausuariosbackend.model.Role;
 import com.usersystem.sistemausuariosbackend.repository.RoleRepository;
@@ -16,9 +21,24 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.multipart.MultipartFile;
+
+import org.springframework.web.bind.annotation.PostMapping; // Si no está
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.core.io.Resource; // Importación nueva
+import org.springframework.core.io.UrlResource; // Importación nueva
+import org.springframework.http.HttpHeaders; // Importación nueva
+import org.springframework.http.MediaType; // Importación nueva
+import java.net.MalformedURLException; // Importación nueva
+
+import java.net.MalformedURLException;
 import java.util.List;
 import java.util.Optional;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 @RestController
 @RequestMapping("/api/users")
@@ -29,17 +49,23 @@ public class UserController {
     private final UserService userService;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final FileStorageService fileStorageService;
+    private final TwoFactorAuthService twoFactorAuthService;
 
     public UserController(UserRepository userRepository,
                           LogService logService,
                           UserService userService,
                           RoleRepository roleRepository,
-                          PasswordEncoder passwordEncoder) {
+                          PasswordEncoder passwordEncoder,
+                          FileStorageService fileStorageService,
+                          TwoFactorAuthService twoFactorAuthService) { // <-- ¡AÑADE ESTO!
         this.userRepository = userRepository;
         this.logService = logService;
         this.userService = userService;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
+        this.fileStorageService = fileStorageService;
+        this.twoFactorAuthService = twoFactorAuthService;// <-- ¡AÑADE ESTO!
     }
 
     @GetMapping("/all")
@@ -157,5 +183,131 @@ public class UserController {
         Optional<User> updatedUserOptional = userService.updateUserWithValidation(userId, user); // Nuevo método en el servicio
         return updatedUserOptional.map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PatchMapping("/me")
+    public ResponseEntity<UserResponseDto> updateUserProfile(@Valid @RequestBody UserProfileUpdateDto profileUpdateDto, Authentication authentication) {
+        String email = authentication.getName();
+        return userRepository.findByEmail(email)
+                .flatMap(user -> userService.updateUserProfile(user.getId(), profileUpdateDto))
+                .map(UserResponseDto::fromUser)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PatchMapping("/me/change-password")
+    public ResponseEntity<?> changeUserPassword(@Valid @RequestBody ChangePasswordRequest request,
+                                                Authentication authentication,
+                                                HttpServletRequest servletRequest) {
+        String email = authentication.getName();
+        return userRepository.findByEmail(email).map(user -> {
+            boolean isPasswordChanged = userService.changePassword(
+                    user.getId(),
+                    request.getCurrentPassword(),
+                    request.getNewPassword(),
+                    passwordEncoder
+            );
+
+            if (isPasswordChanged) {
+                String ipAddress = servletRequest.getRemoteAddr();
+                logService.log("USER_PASSWORD_CHANGE", user.getUsername(), user.getId(), null, null,
+                        "Contraseña del perfil cambiada exitosamente.", "SUCCESS", ipAddress);
+                return ResponseEntity.ok("Contraseña cambiada exitosamente.");
+            } else {
+                return ResponseEntity.badRequest().body("La contraseña actual es incorrecta.");
+            }
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/me/avatar")
+    public ResponseEntity<?> uploadAvatar(@RequestParam("file") MultipartFile file,
+                                          Authentication authentication,
+                                          HttpServletRequest request) { // <-- ¡AÑADE ESTE PARÁMETRO!
+        try {
+            String fileName = fileStorageService.storeFile(file);
+            String fileUrl = "/api/users/avatars/" + fileName;
+
+            String email = authentication.getName();
+            return userRepository.findByEmail(email).map(user -> {
+                user.setAvatarUrl(fileUrl);
+                userService.saveUser(user);
+
+                String ipAddress = request.getRemoteAddr();
+                logService.log("USER_AVATAR_UPLOAD", user.getUsername(), user.getId(), null, null,
+                        "Avatar actualizado exitosamente.", "SUCCESS", ipAddress);
+
+                return ResponseEntity.ok(user.getAvatarUrl());
+            }).orElse(ResponseEntity.notFound().build());
+
+        } catch (IOException ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Could not upload the file.");
+        }
+    }
+
+    @GetMapping("/avatars/{fileName:.+}")
+    public ResponseEntity<Resource> getAvatar(@PathVariable String fileName) throws MalformedURLException {
+        try {
+            Path filePath = Paths.get("uploads").toAbsolutePath().normalize().resolve(fileName);
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (resource.exists() && resource.isReadable()) {
+                String contentType = Files.probeContentType(filePath);
+                if (contentType == null) {
+                    contentType = "application/octet-stream";
+                }
+                return ResponseEntity.ok()
+                        .contentType(MediaType.parseMediaType(contentType))
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
+                        .body(resource);
+            } else {
+                return ResponseEntity.notFound().build();
+            }
+        } catch (IOException ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PostMapping("/me/2fa/generate")
+    public ResponseEntity<String> generate2faSecret(Authentication authentication) {
+        String email = authentication.getName();
+        return userRepository.findByEmail(email).map(user -> {
+            String newSecret = twoFactorAuthService.generateNewSecret();
+            user.setTwoFactorSecret(newSecret);
+            userRepository.save(user);
+
+            // Devolvemos el secreto como una URL para que el frontend genere el QR
+            String qrCodeUrl = twoFactorAuthService.getQrCodeImageUrl(newSecret, "SistemaUsuarios", user.getEmail());
+
+            return ResponseEntity.ok(qrCodeUrl);
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/me/2fa/enable")
+    public ResponseEntity<?> enable2fa(@Valid @RequestBody TwoFactorAuthRequest request, Authentication authentication) {
+        String email = authentication.getName();
+        return userRepository.findByEmail(email).map(user -> {
+            if (twoFactorAuthService.verifyCode(request.getVerificationCode(), user.getTwoFactorSecret())) {
+                user.setTwoFactorEnabled(true);
+                userRepository.save(user);
+                return ResponseEntity.ok("2FA habilitado exitosamente.");
+            } else {
+                return ResponseEntity.badRequest().body("Código de verificación incorrecto.");
+            }
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/me/2fa/disable")
+    public ResponseEntity<?> disable2fa(@Valid @RequestBody TwoFactorAuthRequest request, Authentication authentication) {
+        String email = authentication.getName();
+        return userRepository.findByEmail(email).map(user -> {
+            if (twoFactorAuthService.verifyCode(request.getVerificationCode(), user.getTwoFactorSecret())) {
+                user.setTwoFactorEnabled(false);
+                user.setTwoFactorSecret(null); // Borramos el secreto por seguridad
+                userRepository.save(user);
+                return ResponseEntity.ok("2FA deshabilitado exitosamente.");
+            } else {
+                return ResponseEntity.badRequest().body("Código de verificación incorrecto.");
+            }
+        }).orElse(ResponseEntity.notFound().build());
     }
 }
