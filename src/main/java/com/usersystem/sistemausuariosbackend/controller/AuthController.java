@@ -67,7 +67,9 @@ public class AuthController {
                     new UsernamePasswordAuthenticationToken(loginDto.getEmail(), loginDto.getPassword())
             );
 
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+            // No establezcas el SecurityContextHolder aquí para usuarios con 2FA,
+            // ya que el token no es el final. Se establecerá después de la verificación 2FA.
+            // SecurityContextHolder.getContext().setAuthentication(authentication);
 
             User loggedInUser = userRepository.findByEmail(loginDto.getEmail()).orElse(null);
             if (loggedInUser == null) {
@@ -76,8 +78,11 @@ public class AuthController {
 
             // --- Lógica de 2FA
             if (loggedInUser.isTwoFactorEnabled()) {
-                // Genera un token TEMPORAL sin el rol, que solo servirá para el siguiente paso (verificación del 2FA)
+                // Genera un token TEMPORAL que solo servirá para el siguiente paso (verificación del 2FA)
+                // No necesita tener el rol para este paso.
                 String tempToken = jwtUtil.generateToken((org.springframework.security.core.userdetails.UserDetails) authentication.getPrincipal());
+
+                // Envía la respuesta para que el frontend pida el código 2FA
                 return ResponseEntity.ok(new Login2FAResponse(tempToken, "Bearer", "Se requiere código 2FA.", true));
             }
             // --- Fin de la lógica 2FA

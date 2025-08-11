@@ -98,7 +98,7 @@ public class User {
     private LocalDateTime tokenExpirationDate;
 
     @Column(length = 255)
-    private String avatarUrl;
+    private String avatarUrl; // ⬅️ CAMBIADO
 
 
     @PrePersist

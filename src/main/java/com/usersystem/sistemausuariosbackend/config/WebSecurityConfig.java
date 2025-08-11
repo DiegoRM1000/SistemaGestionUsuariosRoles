@@ -77,12 +77,12 @@ public class WebSecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/users/me").authenticated()
-                        // CORRECCIÓN: Se usa hasAnyAuthority para evitar el prefijo ROLE_
-                        // Ahora esta regla de seguridad coincidirá con las de los controladores
+                        .requestMatchers("/api/users/me/**").authenticated() // <-- AÑADE O MODIFICA ESTA LÍNEA
                         .requestMatchers("/api/roles/**").hasAnyAuthority("ADMIN")
                         .requestMatchers("/api/users/**").hasAnyAuthority("ADMIN", "SUPERVISOR")
                         .requestMatchers("/api/logs/**").hasAnyAuthority("ADMIN", "SUPERVISOR")
                         .requestMatchers("/api/reports/**").hasAnyAuthority("ADMIN", "SUPERVISOR")
+
                         .anyRequest().authenticated()
                 );
 

@@ -13,21 +13,14 @@ public class UserResponseDto {
     private String lastName;
     private String email;
     private String dni;
-    private LocalDate dateOfBirth;
+    private String dateOfBirth;
     private String phoneNumber;
-    private boolean enabled;
     private String role;
+    private boolean enabled;
+    private String avatarUrl; // ⬅️ CAMBIADO: Coincide con tu modelo User
+    private boolean twoFactorEnabled;
 
-    public UserResponseDto(
-            Long id,
-            String firstName,
-            String lastName,
-            String email,
-            String dni,
-            LocalDate dateOfBirth,
-            String phoneNumber,
-            boolean enabled,
-            Role role) {
+    public UserResponseDto(Long id, String firstName, String lastName, String email, String dni, String dateOfBirth, String phoneNumber, String role, boolean enabled, String avatarFileName, boolean twoFactorEnabled) {
         this.id = id;
         this.firstName = firstName;
         this.lastName = lastName;
@@ -35,8 +28,10 @@ public class UserResponseDto {
         this.dni = dni;
         this.dateOfBirth = dateOfBirth;
         this.phoneNumber = phoneNumber;
+        this.role = role;
         this.enabled = enabled;
-        this.role = (role != null) ? role.getName() : null;
+        this.avatarUrl = avatarUrl; // ⬅️ Asignación directa y correcta
+        this.twoFactorEnabled = twoFactorEnabled; // <-- ¡Inicializa el campo!
     }
 
     /**
@@ -47,16 +42,19 @@ public class UserResponseDto {
      * @return Una nueva instancia de UserResponseDto.
      */
     public static UserResponseDto fromUser(User user) {
+        String roleName = user.getRole() != null ? user.getRole().getName() : null;
         return new UserResponseDto(
                 user.getId(),
                 user.getFirstName(),
                 user.getLastName(),
                 user.getEmail(),
                 user.getDni(),
-                user.getDateOfBirth(),
+                user.getDateOfBirth() != null ? user.getDateOfBirth().toString() : null,
                 user.getPhoneNumber(),
+                roleName,
                 user.isEnabled(),
-                user.getRole()
+                user.getAvatarUrl(), // ⬅️ CAMBIADO: Llama al metodo correcto
+                user.isTwoFactorEnabled() // <-- ¡Obtén el valor del usuario!
         );
     }
 }

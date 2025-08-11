@@ -275,10 +275,10 @@ public class UserController {
             user.setTwoFactorSecret(newSecret);
             userRepository.save(user);
 
-            // Devolvemos el secreto como una URL para que el frontend genere el QR
-            String qrCodeUrl = twoFactorAuthService.getQrCodeImageUrl(newSecret, "SistemaUsuarios", user.getEmail());
+            // --- CAMBIO AQUÍ: Usamos el nuevo metodo que devuelve solo la URL de texto
+            String qrCodeText = twoFactorAuthService.getOtpAuthUrl(newSecret, "SistemaUsuarios", user.getEmail());
 
-            return ResponseEntity.ok(qrCodeUrl);
+            return ResponseEntity.ok(qrCodeText);
         }).orElse(ResponseEntity.notFound().build());
     }
 

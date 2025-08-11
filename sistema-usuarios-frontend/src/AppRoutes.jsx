@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './context/AuthProvider';
 import DashboardPage from './pages/DashboardPage.jsx';
 import PrivateRoute from './components/auth/PrivateRoute';
+import RoleGuard from './components/auth/RoleGuard'; // <-- Importa el nuevo componente
 import LoginLayout from "./layouts/LoginLayout.jsx";
 import DashboardHome from './components/dashboard/DashboardHome';
 
@@ -21,37 +22,23 @@ const AppRoutes = () => {
     return (
         <Router>
             <AuthProvider>
-
                 <Routes>
-
                     <Route path="/login" element={<LoginLayout><LoginPage /></LoginLayout>} />
-                     {/* ⬅️ NUEVA RUTA para el formulario de recuperación */}
                     <Route path="/forgot-password" element={<LoginLayout><ForgotPasswordPage /></LoginLayout>} />
                     <Route path="/reset-password" element={<LoginLayout><ResetPasswordPage /></LoginLayout>} />
 
-
-                    {/* Ruta protegida para el Dashboard Layout */}
-                    <Route
-                        path="/dashboard"
-                        element={
-                            <PrivateRoute requiredRoles={['ADMIN', 'EMPLEADO', 'SUPERVISOR']}>
-                                <DashboardPage />
-                            </PrivateRoute>
-                        }
-                    >
+                    {/* RUTA PADRE PROTEGIDA POR AUTENTICACIÓN SOLAMENTE */}
+                    <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>}>
                         {/* Rutas anidadas que se renderizan dentro de <Outlet /> en DashboardPage */}
                         <Route index element={<DashboardHome />} />
-                        <Route path="users" element={<UserManagementPage />} />
-                        <Route path="reports" element={<ReportsPage />} />
-                        <Route path="logs" element={<LogsPage />} />
                         <Route path="profile" element={<ProfilePage />} />
 
-                        {/* ------------------------------------------------------------- */}
-                        {/* Rutas para Crear y Editar Usuario (Nuevas) */}
-                        {/* ------------------------------------------------------------- */}
-                        <Route path="users/new" element={<CreateUserPage />} />
-                        <Route path="users/edit/:id" element={<EditUserPage />} />
-
+                        {/* RUTAS PROTEGIDAS POR ROLES CON EL NUEVO RoleGuard */}
+                        <Route path="users" element={<RoleGuard requiredRoles={['ADMIN', 'SUPERVISOR']}><UserManagementPage /></RoleGuard>} />
+                        <Route path="users/new" element={<RoleGuard requiredRoles={['ADMIN', 'SUPERVISOR']}><CreateUserPage /></RoleGuard>} />
+                        <Route path="users/edit/:id" element={<RoleGuard requiredRoles={['ADMIN', 'SUPERVISOR']}><EditUserPage /></RoleGuard>} />
+                        <Route path="reports" element={<RoleGuard requiredRoles={['ADMIN', 'SUPERVISOR']}><ReportsPage /></RoleGuard>} />
+                        <Route path="logs" element={<RoleGuard requiredRoles={['ADMIN', 'SUPERVISOR']}><LogsPage /></RoleGuard>} />
                     </Route>
 
                     {/* Redirección por defecto y 404 */}
