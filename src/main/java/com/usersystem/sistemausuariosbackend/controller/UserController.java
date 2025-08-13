@@ -244,26 +244,24 @@ public class UserController {
         }
     }
 
+    // ⬅️ Cambios en el metodo para servir el avatar
     @GetMapping("/avatars/{fileName:.+}")
-    public ResponseEntity<Resource> getAvatar(@PathVariable String fileName) throws MalformedURLException {
+    public ResponseEntity<Resource> getAvatar(@PathVariable String fileName) {
         try {
-            Path filePath = Paths.get("uploads").toAbsolutePath().normalize().resolve(fileName);
-            Resource resource = new UrlResource(filePath.toUri());
+            Resource resource = fileStorageService.loadFileAsResource(fileName);
+            String contentType = Files.probeContentType(resource.getFile().toPath());
 
-            if (resource.exists() && resource.isReadable()) {
-                String contentType = Files.probeContentType(filePath);
-                if (contentType == null) {
-                    contentType = "application/octet-stream";
-                }
-                return ResponseEntity.ok()
-                        .contentType(MediaType.parseMediaType(contentType))
-                        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
-                        .body(resource);
-            } else {
-                return ResponseEntity.notFound().build();
+            if (contentType == null) {
+                contentType = "application/octet-stream";
             }
-        } catch (IOException ex) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + resource.getFilename() + "\"")
+                    .body(resource);
+        } catch (IOException | RuntimeException ex) {
+            // Manejo de errores si el archivo no existe o hay un problema al leerlo
+            return ResponseEntity.notFound().build();
         }
     }
 

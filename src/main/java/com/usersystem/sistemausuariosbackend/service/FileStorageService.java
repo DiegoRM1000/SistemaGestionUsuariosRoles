@@ -1,10 +1,15 @@
+// src/main/java/com/usersystem/sistemausuariosbackend/service/FileStorageService.java
+
 package com.usersystem.sistemausuariosbackend.service;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -36,5 +41,23 @@ public class FileStorageService {
         Path targetLocation = this.fileStorageLocation.resolve(fileName);
         Files.copy(file.getInputStream(), targetLocation);
         return fileName;
+    }
+
+    /**
+     * Carga el archivo como un recurso.
+     * @param fileName El nombre del archivo a cargar.
+     * @return El archivo como un objeto Resource.
+     * @throws MalformedURLException si la URL del archivo es inválida.
+     */
+    public Resource loadFileAsResource(String fileName) throws MalformedURLException {
+        Path filePath = this.fileStorageLocation.resolve(fileName).normalize();
+        Resource resource = new UrlResource(filePath.toUri());
+
+        if (resource.exists()) {
+            return resource;
+        } else {
+            // Manejar el caso donde el archivo no existe. Podrías lanzar una excepción o devolver un recurso predeterminado.
+            throw new RuntimeException("File not found " + fileName);
+        }
     }
 }

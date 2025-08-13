@@ -8,8 +8,9 @@ import { FaUserCircle } from 'react-icons/fa';
 import { QRCodeSVG } from 'qrcode.react';
 
 const ProfilePage = () => {
-    // Importa 'token' desde useAuth para usarlo en las peticiones
-    const { user, logout, token } = useAuth();
+    // Importa 'token' y `updateUserAvatar` desde useAuth para usarlo en las peticiones
+    // AÑADIMOS updateUserAvatar
+    const { user, logout, updateUserAvatar } = useAuth();
     const [profileData, setProfileData] = useState({
         firstName: '',
         lastName: '',
@@ -20,10 +21,9 @@ const ProfilePage = () => {
     });
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('general');
-    // Estado para la URL temporal del avatar
-    const [avatarTempUrl, setAvatarTempUrl] = useState(null);
-    // Nuevo estado para el nombre del archivo del avatar, extraído de avatarUrl
-    const [avatarFilename, setAvatarFilename] = useState('');
+
+    // ESTADO PARA LA URL DEL AVATAR. YA NO ES TEMPORAL.
+    const [avatarUrl, setAvatarUrl] = useState('');
 
     const [qrCodeData, setQrCodeData] = useState('');
     const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
@@ -44,26 +44,7 @@ const ProfilePage = () => {
         hasSpecialChar: false,
     });
 
-    // Nueva función para obtener el avatar de forma segura
-    const fetchAvatar = async () => {
-        if (!avatarFilename || !token) {
-            setAvatarTempUrl(null);
-            return;
-        }
-
-        try {
-            const response = await apiClient.get(`/users/avatar-proxy/${avatarFilename}`, {
-                responseType: 'blob', // Pedimos que la respuesta sea un blob (archivo binario)
-            });
-
-            const blobUrl = URL.createObjectURL(response.data);
-            setAvatarTempUrl(blobUrl);
-
-        } catch (error) {
-            console.error('Error al cargar el avatar:', error);
-            setAvatarTempUrl(null);
-        }
-    };
+    // ➡️ ELIMINAMOS LA FUNCIÓN fetchAvatar() QUE YA NO ES NECESARIA
 
     const fetchUserProfile = async () => {
         try {
@@ -79,14 +60,12 @@ const ProfilePage = () => {
             });
             setTwoFactorEnabled(userData.twoFactorEnabled);
 
+            // ➡️ USAMOS DIRECTAMENTE LA URL DEL AVATAR QUE DEVUELVE EL BACKEND
             if (userData.avatarUrl) {
-                // ➡️ CORRECCIÓN AQUÍ: Extraemos el nombre del archivo de la URL
-                const filename = userData.avatarUrl.split('/').pop();
-                setAvatarFilename(filename);
+                setAvatarUrl(`http://localhost:8080${userData.avatarUrl}`);
             } else {
-                setAvatarFilename('');
+                setAvatarUrl('');
             }
-
         } catch (error) {
             console.error("Error al obtener el perfil del usuario:", error);
             toast.error("No se pudo cargar la información del perfil.");
@@ -99,15 +78,16 @@ const ProfilePage = () => {
         fetchUserProfile();
     }, [user]);
 
-    useEffect(() => {
-        fetchAvatar();
-
-        return () => {
-            if (avatarTempUrl) {
-                URL.revokeObjectURL(avatarTempUrl);
-            }
-        };
-    }, [avatarFilename, token]);
+    // ➡️ ELIMINAMOS ESTE useEffect COMPLETO QUE YA NO ES NECESARIO
+    // useEffect(() => {
+    //     fetchAvatar();
+    //
+    //     return () => {
+    //         if (avatarTempUrl) {
+    //             URL.revokeObjectURL(avatarTempUrl);
+    //         }
+    //     };
+    // }, [avatarFilename, token]);
 
     const handleAvatarUpload = async (e) => {
         const file = e.target.files[0];
@@ -123,10 +103,13 @@ const ProfilePage = () => {
                 },
             });
 
-            // ➡️ Actualiza el estado con el nuevo nombre de archivo extraído de la ruta
+            // ➡️ CORRECCIÓN: Construimos la URL completa para el frontend
             const newAvatarPath = response.data;
-            const filename = newAvatarPath.split('/').pop();
-            setAvatarFilename(filename);
+            const newAvatarUrl = `http://localhost:8080${newAvatarPath}`;
+
+            // Actualizamos el estado local y el estado global (AuthProvider)
+            setAvatarUrl(newAvatarUrl);
+            updateUserAvatar(newAvatarUrl); // ⬅️ Le pasamos la URL completa
 
             toast.success('Foto de perfil actualizada con éxito. 🎉');
 
@@ -302,9 +285,9 @@ const ProfilePage = () => {
                             </h3>
                             <div className="flex items-center space-x-6">
                                 <div className="flex-shrink-0 relative">
-                                    {/* Usa la URL temporal del blob */}
-                                    {avatarTempUrl ? (
-                                        <img src={avatarTempUrl} alt="Avatar de usuario" className="h-20 w-20 rounded-full object-cover" />
+                                    {/* ➡️ Usa la URL del avatar del estado `avatarUrl` */}
+                                    {avatarUrl ? (
+                                        <img src={avatarUrl} alt="Avatar de usuario" className="h-20 w-20 rounded-full object-cover" />
                                     ) : (
                                         <div className="h-20 w-20 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-4xl text-white">
                                             <FaUserCircle />
@@ -331,8 +314,7 @@ const ProfilePage = () => {
                                 </div>
                             </div>
                         </section>
-
-                        {/* Sección de Datos Generales */}
+                        {/* ... El resto del formulario de datos generales sigue igual */}
                         <form onSubmit={handleUpdateProfile} className="space-y-6">
                             <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
                                 Información Personal
@@ -371,6 +353,7 @@ const ProfilePage = () => {
                         </form>
                     </div>
                 )}
+                {/* ... El resto de la pestaña de seguridad sigue igual */}
                 {activeTab === 'security' && (
                     <div className="space-y-6">
                         {/* Sección de Cambio de Contraseña */}

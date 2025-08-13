@@ -1,21 +1,16 @@
-    import React, { useState, useEffect, useRef } from 'react';
-    import { useAuth } from '../context/AuthContext.js';
-    import { Outlet, Link, Navigate } from 'react-router-dom';
-    import {
-        FiHome, FiUsers, FiBarChart, FiFileText, FiUser, FiLogOut,
-        FiChevronDown, FiMenu, FiBell
-    } from 'react-icons/fi';
-    // CORRECCIÓN CLAVE: La función getFriendlyRoleName ya no existe en roleUtils.js,
-    // por lo que eliminamos esta importación para resolver el error.
-    // import { getFriendlyRoleName } from '../utils/roleUtils.js';
+import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../context/AuthContext.js';
+import { Outlet, Link, Navigate } from 'react-router-dom';
+import {
+    FiHome, FiUsers, FiBarChart, FiFileText, FiUser, FiLogOut,
+    FiChevronDown, FiMenu, FiBell
+} from 'react-icons/fi';
 
-    const DashboardPage = () => {
-        const { user, logout, userRoles, isLoading } = useAuth();
-        // CORRECCIÓN: Se ha eliminado el hook useNavigate porque no se estaba usando.
-        // Esto resuelve el error de ESLint.
-        const [dropdownOpen, setDropdownOpen] = useState(false);
-        const [sidebarOpen, setSidebarOpen] = useState(false);
-        const dropdownRef = useRef(null);
+const DashboardPage = () => {
+    const { user, logout, userRoles, isLoading } = useAuth();
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const dropdownRef = useRef(null);
 
         // Cierra el dropdown si se hace clic fuera de él
         useEffect(() => {
@@ -34,26 +29,25 @@
             logout();
         };
 
-        if (isLoading) {
-            return (
-                <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white text-xl">
-                    Cargando dashboard...
-                </div>
-            );
-        }
+    if (isLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white text-xl">
+                Cargando dashboard...
+            </div>
+        );
+    }
 
-        if (!user) {
-            return <Navigate to="/login" replace />;
-        }
+    if (!user) {
+        return <Navigate to="/login" replace />;
+    }
 
-        const userInitials = user.firstName && user.lastName
-            ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
-            : user.username
-                ? user.username.charAt(0).toUpperCase()
-                : 'US';
+    const userInitials = user.firstName && user.lastName
+        ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
+        : user.username
+            ? user.username.charAt(0).toUpperCase()
+            : 'US';
 
-        // Se ha corregido la variable de visualización para que coincida con los nuevos roles
-        const displayRole = userRoles.length > 0 ? userRoles[0] : 'EMPLEADO';
+    const displayRole = userRoles.length > 0 ? userRoles[0] : 'EMPLEADO';
 
         return (
             <div className="flex flex-col md:flex-row h-screen md:h-[100dvh] bg-gray-100 dark:bg-gray-900">
@@ -148,9 +142,14 @@
                                     onClick={() => setDropdownOpen(!dropdownOpen)}
                                     className="flex items-center space-x-2 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition duration-200 focus:outline-none"
                                 >
-                                    <div className="w-10 h-10 bg-blue-500 dark:bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-lg">
-                                        {userInitials}
-                                    </div>
+                                    {/* ➡️ CONDICIONALMENTE MOSTRAR EL AVATAR O LAS INICIALES */}
+                                    {user.avatarUrl ? (
+                                        <img src={user.avatarUrl} alt="Avatar" className="w-10 h-10 rounded-full object-cover" />
+                                    ) : (
+                                        <div className="w-10 h-10 bg-blue-500 dark:bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-lg">
+                                            {userInitials}
+                                        </div>
+                                    )}
                                     <span className="hidden md:block text-gray-800 dark:text-gray-100 font-medium">{user.firstName}</span>
                                     <FiChevronDown className={`text-gray-500 dark:text-gray-300 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
                                 </button>

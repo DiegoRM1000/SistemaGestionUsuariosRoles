@@ -7,7 +7,9 @@ import { setAuthDataForInterceptors } from '../utils/axiosConfig';
 import { useNavigate } from 'react-router-dom';
 
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || null);
+    // AÑADE 'avatarUrl' al estado inicial del usuario
+    const initialUser = JSON.parse(localStorage.getItem('user')) || { avatarUrl: null };
+    const [user, setUser] = useState(initialUser);
     const [token, setToken] = useState(localStorage.getItem('jwtToken'));
     const [userRoles, setUserRoles] = useState(localStorage.getItem('userRoles') ? JSON.parse(localStorage.getItem('userRoles')) : []);
     const [isLoading, setIsLoading] = useState(true);
@@ -16,13 +18,6 @@ export const AuthProvider = ({ children }) => {
     const [twoFactorRequired, setTwoFactorRequired] = useState(false);
 
     const navigate = useNavigate();
-
-    // ➡️ ¡ELIMINA este useEffect! La nueva lógica lo manejará.
-    // useEffect(() => {
-    //     if (token) {
-    //         navigate('/dashboard', { replace: true });
-    //     }
-    // }, [token, navigate]);
 
     const logout = useCallback(() => {
         localStorage.removeItem('jwtToken');
@@ -36,6 +31,15 @@ export const AuthProvider = ({ children }) => {
         navigate('/login');
     }, [navigate]);
 
+    // ➡️ CORRECCIÓN CLAVE: Agrega `localStorage.setItem` aquí
+    const updateUserAvatar = (newAvatarPath) => {
+        setUser(prevUser => {
+            const updatedUser = { ...prevUser, avatarUrl: newAvatarPath };
+            localStorage.setItem('user', JSON.stringify(updatedUser)); // ⬅️ ¡Esta línea es la clave!
+            return updatedUser;
+        });
+    };
+
     const login = useCallback(async (email, password) => {
         setIsLoading(true);
         try {
@@ -48,8 +52,13 @@ export const AuthProvider = ({ children }) => {
                 setIsLoading(false);
                 return { success: true, twoFactorRequired: true };
             } else {
-                const { accessToken, id, firstName, lastName, email: userEmail, dni, role } = response.data;
-                const userFromLogin = { id, firstName, lastName, email: userEmail, dni, role };
+                const { accessToken, id, firstName, lastName, email: userEmail, dni, role, avatarUrl } = response.data;
+
+                // ➡️ CORRECCIÓN CLAVE: Construimos la URL completa aquí
+                const fullAvatarUrl = avatarUrl ? `http://localhost:8080${avatarUrl}` : null;
+
+                // AÑADIMOS la URL completa al objeto `userFromLogin`
+                const userFromLogin = { id, firstName, lastName, email: userEmail, dni, role, avatarUrl: fullAvatarUrl };
                 const rolesFromLogin = [role];
 
                 localStorage.setItem('jwtToken', accessToken);
@@ -63,7 +72,7 @@ export const AuthProvider = ({ children }) => {
 
                 toast.success('¡Inicio de sesión exitoso!');
                 setIsLoading(false);
-                navigate('/dashboard'); // ⬅️ Vuelve a habilitar la redirección aquí
+                navigate('/dashboard');
 
                 return { success: true, twoFactorRequired: false };
             }
@@ -96,8 +105,13 @@ export const AuthProvider = ({ children }) => {
                 headers: { 'Authorization': `Bearer ${tempToken}` }
             });
 
-            const { accessToken, id, firstName, lastName, email: userEmail, dni, role } = response.data;
-            const userFromLogin = { id, firstName, lastName, email: userEmail, dni, role };
+            const { accessToken, id, firstName, lastName, email: userEmail, dni, role, avatarUrl } = response.data;
+
+            // ➡️ CORRECCIÓN CLAVE: Construimos la URL completa aquí
+            const fullAvatarUrl = avatarUrl ? `http://localhost:8080${avatarUrl}` : null;
+
+            // AÑADIMOS la URL completa al objeto `userFromLogin`
+            const userFromLogin = { id, firstName, lastName, email: userEmail, dni, role, avatarUrl: fullAvatarUrl };
             const rolesFromLogin = [role];
 
             localStorage.setItem('jwtToken', accessToken);
@@ -113,7 +127,7 @@ export const AuthProvider = ({ children }) => {
 
             toast.success('Verificación de 2FA exitosa. ¡Bienvenido!');
             setIsLoading(false);
-            navigate('/dashboard'); // ⬅️ Vuelve a habilitar la redirección aquí
+            navigate('/dashboard');
 
             return { success: true };
 
@@ -137,7 +151,9 @@ export const AuthProvider = ({ children }) => {
 
         if (storedToken && storedUser && storedRoles) {
             setToken(storedToken);
-            setUser(JSON.parse(storedUser));
+            const parsedUser = JSON.parse(storedUser);
+            // ➡️ CORRECCIÓN: Nos aseguramos de que la URL completa se guarde en el estado
+            setUser({ ...parsedUser, avatarUrl: parsedUser.avatarUrl ? parsedUser.avatarUrl : null });
             setUserRoles(JSON.parse(storedRoles));
         }
 
@@ -154,6 +170,7 @@ export const AuthProvider = ({ children }) => {
         logout,
         verify2FA,
         twoFactorRequired,
+        updateUserAvatar, // ➡️ AÑADE LA NUEVA FUNCIÓN AQUÍ
     };
 
     return (

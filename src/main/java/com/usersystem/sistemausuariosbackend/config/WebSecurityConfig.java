@@ -16,6 +16,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.boot.autoconfigure.security.servlet.PathRequest; // <-- Añade este import
 
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -75,14 +76,15 @@ public class WebSecurityConfig {
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll() // <-- AÑADE ESTA LÍNEA
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/users/avatars/**").permitAll() // <-- AÑADE ESTA OTRAS LÍNEA
                         .requestMatchers("/api/users/me").authenticated()
-                        .requestMatchers("/api/users/me/**").authenticated() // <-- AÑADE O MODIFICA ESTA LÍNEA
+                        .requestMatchers("/api/users/me/**").authenticated()
                         .requestMatchers("/api/roles/**").hasAnyAuthority("ADMIN")
                         .requestMatchers("/api/users/**").hasAnyAuthority("ADMIN", "SUPERVISOR")
                         .requestMatchers("/api/logs/**").hasAnyAuthority("ADMIN", "SUPERVISOR")
                         .requestMatchers("/api/reports/**").hasAnyAuthority("ADMIN", "SUPERVISOR")
-
                         .anyRequest().authenticated()
                 );
 
