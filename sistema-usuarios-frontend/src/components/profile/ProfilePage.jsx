@@ -93,6 +93,13 @@ const ProfilePage = () => {
         const file = e.target.files[0];
         if (!file) return;
 
+        // ➡️ AÑADE ESTA VALIDACIÓN DE TAMAÑO DE ARCHIVO
+        const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+        if (file.size > MAX_FILE_SIZE) {
+            toast.error('El tamaño del archivo no puede exceder 5MB.');
+            return;
+        }
+
         const formData = new FormData();
         formData.append('file', file);
 

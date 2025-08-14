@@ -38,44 +38,37 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        String authHeader = request.getHeader("Authorization"); // Obtiene el encabezado Authorization
+        String authHeader = request.getHeader("Authorization");
         String token = null;
         String username = null;
 
-        log.info("Processing request for URI: {}", request.getRequestURI()); // Log de inicio
-
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             token = authHeader.substring(7);
-            log.info("Authorization Header found. Token extracted.");
             try {
                 username = jwtUtil.extractUsername(token);
-                log.info("Username extracted from token: {}", username);
             } catch (Exception e) {
-                log.error("Error extracting username or invalid JWT token: {}", e.getMessage()); // Log de error si el token es inválido
+                log.error("Error extracting username or invalid JWT token: {}", e.getMessage());
             }
-        } else {
-            log.warn("No Authorization header or does not start with Bearer for URI: {}", request.getRequestURI());
         }
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            log.info("Attempting to load UserDetails for username: {}", username);
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-            if (jwtUtil.validateToken(token, userDetails)) {
-                log.info("Token validated successfully for user: {}", username);
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities());
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-                SecurityContextHolder.getContext().setAuthentication(authToken);
-                log.info("User {} authenticated and set in SecurityContext.", username);
-            } else {
-                log.warn("Token validation failed for user: {}", username); // Log si la validación falla
+            // ➡️ CORRECCIÓN: Maneja cualquier excepción durante la validación del token.
+            try {
+                if (jwtUtil.validateToken(token, userDetails)) {
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                            userDetails, null, userDetails.getAuthorities());
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
+            } catch (Exception e) {
+                log.error("Token validation failed for user {}: {}", username, e.getMessage());
+                // No hacemos nada, el SecurityContext se mantiene nulo y el flujo continúa
+                // para ser manejado por el AuthenticationEntryPoint.
             }
-        } else if (SecurityContextHolder.getContext().getAuthentication() != null) {
-            log.info("SecurityContext already has authentication for user: {}", SecurityContextHolder.getContext().getAuthentication().getName());
         }
 
         filterChain.doFilter(request, response);
     }
-}
+    }

@@ -30,10 +30,18 @@ public class FileStorageService {
     }
 
     public String storeFile(MultipartFile file) throws IOException {
+
+        // ➡️ AÑADE ESTA VALIDACIÓN DEL TIPO DE ARCHIVO
+        String contentType = file.getContentType();
+        if (contentType == null || (!contentType.equals("image/jpeg") && !contentType.equals("image/png") && !contentType.equals("image/webp"))) {
+            throw new RuntimeException("Tipo de archivo no permitido. Solo se aceptan JPEG, PNG y WEBP.");
+        }
+
         String originalFileName = file.getOriginalFilename();
         String fileExtension = "";
         if (originalFileName != null && originalFileName.contains(".")) {
-            fileExtension = originalFileName.substring(originalFileName.lastIndexOf("."));
+            // Convierte la extensión a minúsculas
+            fileExtension = originalFileName.substring(originalFileName.lastIndexOf(".")).toLowerCase();
         }
 
         // Genera un nombre de archivo único para evitar colisiones
