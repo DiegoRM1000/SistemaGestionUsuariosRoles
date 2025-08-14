@@ -60,9 +60,9 @@ const ProfilePage = () => {
             });
             setTwoFactorEnabled(userData.twoFactorEnabled);
 
-            // ➡️ USAMOS DIRECTAMENTE LA URL DEL AVATAR QUE DEVUELVE EL BACKEND
+            // CÓDIGO CORRECTO
             if (userData.avatarUrl) {
-                setAvatarUrl(`http://localhost:8080${userData.avatarUrl}`);
+                setAvatarUrl(userData.avatarUrl);
             } else {
                 setAvatarUrl('');
             }
@@ -103,16 +103,12 @@ const ProfilePage = () => {
                 },
             });
 
-            // ➡️ CORRECCIÓN: Construimos la URL completa para el frontend
-            const newAvatarPath = response.data;
-            const newAvatarUrl = `http://localhost:8080${newAvatarPath}`;
-
-            // Actualizamos el estado local y el estado global (AuthProvider)
+            // CÓDIGO CORRECTO
+            const newAvatarUrl = response.data; // La respuesta del backend ya es la URL completa
+            updateUserAvatar(newAvatarUrl);
             setAvatarUrl(newAvatarUrl);
-            updateUserAvatar(newAvatarUrl); // ⬅️ Le pasamos la URL completa
 
             toast.success('Foto de perfil actualizada con éxito. 🎉');
-
         } catch (error) {
             console.error('Error al subir el avatar:', error);
             toast.error('Error al subir la foto. Intenta de nuevo.');
@@ -285,9 +281,9 @@ const ProfilePage = () => {
                             </h3>
                             <div className="flex items-center space-x-6">
                                 <div className="flex-shrink-0 relative">
-                                    {/* ➡️ Usa la URL del avatar del estado `avatarUrl` */}
-                                    {avatarUrl ? (
-                                        <img src={avatarUrl} alt="Avatar de usuario" className="h-20 w-20 rounded-full object-cover" />
+                                    {/* ➡️ Asegúrate de que la URL esté completa. `user.avatarUrl` debería ser la URL completa */}
+                                    {user.avatarUrl ? (
+                                        <img src={user.avatarUrl} alt="Avatar de usuario" className="h-20 w-20 rounded-full object-cover" />
                                     ) : (
                                         <div className="h-20 w-20 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-4xl text-white">
                                             <FaUserCircle />

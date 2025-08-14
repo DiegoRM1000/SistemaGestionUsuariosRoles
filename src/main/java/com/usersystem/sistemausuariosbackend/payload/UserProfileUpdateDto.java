@@ -19,6 +19,9 @@ public class UserProfileUpdateDto {
     @Pattern(regexp = "^[0-9]{9}$", message = "El número de teléfono debe tener 9 dígitos")
     private String phoneNumber;
 
+    // ➡️ CORRECCIÓN CLAVE: Agrega el campo y sus métodos para el avatarUrl
+    private String avatarUrl;
+
     // Getters y Setters
     public String getFirstName() {
         return firstName;
@@ -50,5 +53,13 @@ public class UserProfileUpdateDto {
 
     public void setPhoneNumber(String phoneNumber) {
         this.phoneNumber = phoneNumber;
+    }
+    // ➡️ Nuevos Getters y Setters para el avatarUrl
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
     }
 }

@@ -22,6 +22,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder; // <-- Asegúrate de que esta línea esté presente
 
 import org.springframework.web.bind.annotation.PostMapping; // Si no está
 import org.springframework.web.bind.annotation.*;
@@ -88,12 +89,25 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<UserResponseDto> getMyProfile(Authentication authentication) {
         String email = authentication.getName();
+
         return userRepository.findByEmail(email)
-                .map(UserResponseDto::fromUser)
+                .map(user -> {
+                    UserResponseDto dto = UserResponseDto.fromUser(user);
+
+                    // ➡️ CORRECCIÓN: Construye la URL completa del avatar antes de devolver el DTO
+                    if (user.getAvatarUrl() != null) {
+                        // Reemplaza la ruta incompleta con la URL completa si existe
+                        String fileDownloadUri = ServletUriComponentsBuilder.fromCurrentContextPath()
+                                .path(user.getAvatarUrl())
+                                .toUriString();
+                        dto.setAvatarUrl(fileDownloadUri);
+                    }
+
+                    return dto;
+                })
                 .map(ResponseEntity::ok)
                 .orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
-
     @DeleteMapping("/{userId}")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<Void> deleteUser(@PathVariable Long userId, Authentication authentication, HttpServletRequest request) {
@@ -222,21 +236,28 @@ public class UserController {
     @PostMapping("/me/avatar")
     public ResponseEntity<?> uploadAvatar(@RequestParam("file") MultipartFile file,
                                           Authentication authentication,
-                                          HttpServletRequest request) { // <-- ¡AÑADE ESTE PARÁMETRO!
+                                          HttpServletRequest request) {
         try {
             String fileName = fileStorageService.storeFile(file);
-            String fileUrl = "/api/users/avatars/" + fileName;
+
+            // ➡️ CORRECCIÓN CLAVE: Guarda la RUTA RELATIVA en la base de datos.
+            String avatarPath = "/api/users/avatars/" + fileName;
 
             String email = authentication.getName();
             return userRepository.findByEmail(email).map(user -> {
-                user.setAvatarUrl(fileUrl);
+                // Guardamos la RUTA RELATIVA en la base de datos
+                user.setAvatarUrl(avatarPath);
                 userService.saveUser(user);
 
                 String ipAddress = request.getRemoteAddr();
                 logService.log("USER_AVATAR_UPLOAD", user.getUsername(), user.getId(), null, null,
                         "Avatar actualizado exitosamente.", "SUCCESS", ipAddress);
 
-                return ResponseEntity.ok(user.getAvatarUrl());
+                // Devolvemos la URL COMPLETA al frontend
+                String fileDownloadUri = ServletUriComponentsBuilder.fromCurrentContextPath()
+                        .path(avatarPath)
+                        .toUriString();
+                return ResponseEntity.ok(fileDownloadUri);
             }).orElse(ResponseEntity.notFound().build());
 
         } catch (IOException ex) {

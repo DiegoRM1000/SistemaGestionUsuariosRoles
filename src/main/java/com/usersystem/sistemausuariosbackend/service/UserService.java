@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Optional;
 import java.time.LocalDateTime;
 
+
 @Service
 public class UserService {
 
@@ -126,10 +127,25 @@ public class UserService {
     public Optional<User> updateUserProfile(Long userId, UserProfileUpdateDto profileUpdateDto) {
         return userRepository.findById(userId).map(user -> {
             // Actualizamos los campos desde el DTO
-            user.setFirstName(profileUpdateDto.getFirstName());
-            user.setLastName(profileUpdateDto.getLastName());
-            user.setDni(profileUpdateDto.getDni());
-            user.setPhoneNumber(profileUpdateDto.getPhoneNumber());
+            if (profileUpdateDto.getFirstName() != null) {
+                user.setFirstName(profileUpdateDto.getFirstName());
+            }
+            if (profileUpdateDto.getLastName() != null) {
+                user.setLastName(profileUpdateDto.getLastName());
+            }
+            if (profileUpdateDto.getDni() != null) {
+                user.setDni(profileUpdateDto.getDni());
+            }
+            if (profileUpdateDto.getPhoneNumber() != null) {
+                user.setPhoneNumber(profileUpdateDto.getPhoneNumber());
+            }
+
+            // ➡️ CORRECCIÓN CLAVE: Aseguramos que el avatarUrl no sea sobrescrito si viene como nulo en el DTO
+            // Este cambio es crucial para mantener la consistencia
+            if (profileUpdateDto.getAvatarUrl() != null) {
+                user.setAvatarUrl(profileUpdateDto.getAvatarUrl());
+            }
+
             user.setUpdatedAt(LocalDateTime.now());
             return userRepository.save(user);
         });

@@ -19,6 +19,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import com.usersystem.sistemausuariosbackend.service.TwoFactorAuthService;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -76,7 +77,7 @@ public class AuthController {
                 return new ResponseEntity<>(null, HttpStatus.UNAUTHORIZED);
             }
 
-            // --- Lógica de 2FA
+            // --- Lógica de 2FA (no necesita cambios)
             if (loggedInUser.isTwoFactorEnabled()) {
                 // Genera un token TEMPORAL que solo servirá para el siguiente paso (verificación del 2FA)
                 // No necesita tener el rol para este paso.
@@ -93,9 +94,18 @@ public class AuthController {
             logService.log("USER_LOGIN", loggedInUser.getUsername(), loggedInUser.getId(), null, null,
                     "Inicio de sesión exitoso", "SUCCESS", ipAddress);
 
+            // ➡️ CORRECCIÓN CLAVE: Construir y devolver la URL del avatar
+            String avatarUrl = null;
+            if (loggedInUser.getAvatarUrl() != null) {
+                avatarUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
+                        .path(loggedInUser.getAvatarUrl())
+                        .toUriString();
+            }
+
             return ResponseEntity.ok(new LoginResponseDto(
                     token, "Bearer", loggedInUser.getId(), loggedInUser.getFirstName(),
-                    loggedInUser.getLastName(), loggedInUser.getEmail(), loggedInUser.getDni(), roleName
+                    loggedInUser.getLastName(), loggedInUser.getEmail(), loggedInUser.getDni(), roleName,
+                    avatarUrl // ➡️ Añade el avatarUrl
             ));
 
         } catch (AuthenticationException e) {
@@ -184,6 +194,7 @@ public class AuthController {
         return userRepository.findByEmail(email).map(user -> {
             if (twoFactorAuthService.verifyCode(twoFactorAuthRequest.getVerificationCode(), user.getTwoFactorSecret())) {
 
+
                 // --- Corregimos el método generateToken
                 // Necesitamos un objeto UserDetails para generar el token final
                 // Asumimos que tu clase User implementa UserDetails, si no es así,
@@ -197,13 +208,18 @@ public class AuthController {
 
                 String roleName = user.getRole().getName();
 
-                String ipAddress = request.getRemoteAddr();
-                logService.log("USER_LOGIN_2FA", user.getUsername(), user.getId(), null, null,
-                        "Inicio de sesión 2FA exitoso", "SUCCESS", ipAddress);
+                // ➡️ CORRECCIÓN CLAVE: Construir y devolver la URL del avatar
+                String avatarUrl = null;
+                if (user.getAvatarUrl() != null) {
+                    avatarUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
+                            .path(user.getAvatarUrl())
+                            .toUriString();
+                }
 
                 return ResponseEntity.ok(new LoginResponseDto(
                         finalToken, "Bearer", user.getId(), user.getFirstName(),
-                        user.getLastName(), user.getEmail(), user.getDni(), roleName
+                        user.getLastName(), user.getEmail(), user.getDni(), roleName,
+                        avatarUrl // ➡️ Añade el avatarUrl
                 ));
 
             } else {

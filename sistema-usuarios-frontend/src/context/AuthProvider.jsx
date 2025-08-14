@@ -31,11 +31,11 @@ export const AuthProvider = ({ children }) => {
         navigate('/login');
     }, [navigate]);
 
-    // ➡️ CORRECCIÓN CLAVE: Agrega `localStorage.setItem` aquí
-    const updateUserAvatar = (newAvatarPath) => {
+    // ➡️ CORRECCIÓN: La función `updateUserAvatar` debe manejar la URL completa para el estado
+    const updateUserAvatar = (newAvatarUrl) => {
         setUser(prevUser => {
-            const updatedUser = { ...prevUser, avatarUrl: newAvatarPath };
-            localStorage.setItem('user', JSON.stringify(updatedUser)); // ⬅️ ¡Esta línea es la clave!
+            const updatedUser = { ...prevUser, avatarUrl: newAvatarUrl };
+            localStorage.setItem('user', JSON.stringify(updatedUser));
             return updatedUser;
         });
     };
@@ -54,14 +54,15 @@ export const AuthProvider = ({ children }) => {
             } else {
                 const { accessToken, id, firstName, lastName, email: userEmail, dni, role, avatarUrl } = response.data;
 
-                // ➡️ CORRECCIÓN CLAVE: Construimos la URL completa aquí
-                const fullAvatarUrl = avatarUrl ? `http://localhost:8080${avatarUrl}` : null;
+                // ➡️ CORRECCIÓN CLAVE: El backend ya devuelve la URL completa.
+                const fullAvatarUrl = avatarUrl;
 
-                // AÑADIMOS la URL completa al objeto `userFromLogin`
+                // Usar la URL completa para el estado y el localStorage
                 const userFromLogin = { id, firstName, lastName, email: userEmail, dni, role, avatarUrl: fullAvatarUrl };
                 const rolesFromLogin = [role];
 
                 localStorage.setItem('jwtToken', accessToken);
+                // ➡️ CORRECCIÓN: Guarda `userFromLogin` que contiene la URL completa
                 localStorage.setItem('user', JSON.stringify(userFromLogin));
                 localStorage.setItem('userRoles', JSON.stringify(rolesFromLogin));
                 localStorage.setItem('userRole', role);
@@ -77,6 +78,7 @@ export const AuthProvider = ({ children }) => {
                 return { success: true, twoFactorRequired: false };
             }
         } catch (error) {
+
             console.error('Login fallido desde AuthProvider:', error);
             let errorMessage = 'Error desconocido al iniciar sesión.';
             if (error.response) {
@@ -96,21 +98,23 @@ export const AuthProvider = ({ children }) => {
             setIsLoading(false);
             return { success: false, message: errorMessage };
         }
-    }, []);
+    }, [navigate]);
 
     const verify2FA = useCallback(async (verificationCode) => {
         setIsLoading(true);
         try {
+            // ➡️ CORRECCIÓN CLAVE: Agrega esta línea para hacer la llamada a la API y
+            // guardar la respuesta en la variable 'response'.
             const response = await axios.post('http://localhost:8080/api/auth/verify-2fa', { verificationCode }, {
                 headers: { 'Authorization': `Bearer ${tempToken}` }
             });
 
+            // Ahora 'response' está definida y podemos usarla.
             const { accessToken, id, firstName, lastName, email: userEmail, dni, role, avatarUrl } = response.data;
 
-            // ➡️ CORRECCIÓN CLAVE: Construimos la URL completa aquí
-            const fullAvatarUrl = avatarUrl ? `http://localhost:8080${avatarUrl}` : null;
-
-            // AÑADIMOS la URL completa al objeto `userFromLogin`
+            // El resto de la lógica de guardado en localStorage y estado
+            // del usuario
+            const fullAvatarUrl = avatarUrl;
             const userFromLogin = { id, firstName, lastName, email: userEmail, dni, role, avatarUrl: fullAvatarUrl };
             const rolesFromLogin = [role];
 
@@ -130,7 +134,6 @@ export const AuthProvider = ({ children }) => {
             navigate('/dashboard');
 
             return { success: true };
-
         } catch (error) {
             console.error('Error al verificar 2FA:', error);
             const errorMessage = error.response?.data?.message || 'Código de verificación incorrecto. Intenta de nuevo.';
@@ -138,7 +141,7 @@ export const AuthProvider = ({ children }) => {
             setIsLoading(false);
             return { success: false, message: errorMessage };
         }
-    }, [tempToken]);
+    }, [tempToken, navigate]);
 
     useEffect(() => {
         setAuthDataForInterceptors(logout, navigate);
@@ -152,13 +155,16 @@ export const AuthProvider = ({ children }) => {
         if (storedToken && storedUser && storedRoles) {
             setToken(storedToken);
             const parsedUser = JSON.parse(storedUser);
-            // ➡️ CORRECCIÓN: Nos aseguramos de que la URL completa se guarde en el estado
-            setUser({ ...parsedUser, avatarUrl: parsedUser.avatarUrl ? parsedUser.avatarUrl : null });
+
+            // ➡️ CORRECCIÓN CLAVE: No construyas la URL de nuevo. Úsala directamente.
+            // La URL que viene del backend ya es completa.
+            setUser(parsedUser);
+
             setUserRoles(JSON.parse(storedRoles));
         }
 
         setIsLoading(false);
-    }, []);
+    }, []); // Este array de dependencias debe estar vacío
 
     const authContextValue = {
         isAuthenticated: !!token,
