@@ -68,4 +68,15 @@ public class FileStorageService {
             throw new RuntimeException("File not found " + fileName);
         }
     }
+
+    // ➡️ Metodo para eliminar un archivo del disco
+    public void deleteFile(String fileName) {
+        try {
+            Path filePath = this.fileStorageLocation.resolve(fileName).normalize();
+            Files.deleteIfExists(filePath);
+        } catch (IOException ex) {
+            // Se registra el error, pero no es crítico si el archivo no existe
+            System.err.println("Error al intentar eliminar el archivo: " + fileName + ". " + ex.getMessage());
+        }
+    }
 }

@@ -238,14 +238,26 @@ public class UserController {
                                           Authentication authentication,
                                           HttpServletRequest request) {
         try {
-            String fileName = fileStorageService.storeFile(file);
-
-            // ➡️ CORRECCIÓN CLAVE: Guarda la RUTA RELATIVA en la base de datos.
-            String avatarPath = "/api/users/avatars/" + fileName;
-
             String email = authentication.getName();
             return userRepository.findByEmail(email).map(user -> {
-                // Guardamos la RUTA RELATIVA en la base de datos
+
+                // ➡️ Paso 1: Guardar el nuevo avatar y obtener su nombre de archivo
+                String fileName = null;
+                try {
+                    fileName = fileStorageService.storeFile(file);
+                } catch (IOException e) {
+                    // Maneja el error de guardado de archivo aquí
+                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error al guardar el nuevo archivo.");
+                }
+
+                // ➡️ Paso 2: Eliminar el avatar anterior si existe
+                if (user.getAvatarUrl() != null) {
+                    String oldFileName = user.getAvatarUrl().substring(user.getAvatarUrl().lastIndexOf('/') + 1);
+                    fileStorageService.deleteFile(oldFileName);
+                }
+
+                // Paso 3: Actualizar la URL del avatar en la base de datos
+                String avatarPath = "/api/users/avatars/" + fileName;
                 user.setAvatarUrl(avatarPath);
                 userService.saveUser(user);
 
@@ -253,15 +265,16 @@ public class UserController {
                 logService.log("USER_AVATAR_UPLOAD", user.getUsername(), user.getId(), null, null,
                         "Avatar actualizado exitosamente.", "SUCCESS", ipAddress);
 
-                // Devolvemos la URL COMPLETA al frontend
+                // Paso 4: Devolver la URL completa al frontend
                 String fileDownloadUri = ServletUriComponentsBuilder.fromCurrentContextPath()
                         .path(avatarPath)
                         .toUriString();
                 return ResponseEntity.ok(fileDownloadUri);
             }).orElse(ResponseEntity.notFound().build());
 
-        } catch (IOException ex) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Could not upload the file.");
+        } catch (Exception ex) {
+            // Manejo de cualquier otra excepción
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Ocurrió un error inesperado al subir el archivo.");
         }
     }
 
